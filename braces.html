@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f6fed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>교정기 착용 기록</title>
+  <style>
+    :root {
+      --bg: #f4f6fb; --card: #ffffff; --text: #1d2433; --muted: #6b7385;
+      --line: #e3e7ef; --accent: #2f6fed; --accent-soft: #e6eeff;
+      --good: #1f9d55; --good-soft: #e3f6eb; --warn: #d97706; --warn-soft: #fdf1df;
+      --bad: #dc3545; --bad-soft: #fde7e9;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12151c; --card: #1c212c; --text: #e8ebf2; --muted: #9aa2b4;
+        --line: #2c3342; --accent: #6b9bff; --accent-soft: #23304d;
+        --good: #3ccf7f; --good-soft: #193526; --warn: #f0a540; --warn-soft: #3a2c15;
+        --bad: #ff6b78; --bad-soft: #3d1d22;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+      font-size: 16px; line-height: 1.5;
+      padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    }
+    header { padding: 20px 16px 8px; max-width: 640px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 22px; }
+    header p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+    main { max-width: 640px; margin: 0 auto; padding: 8px 16px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+    .card h2 { margin: 0 0 12px; font-size: 17px; }
+    .muted { color: var(--muted); font-size: 14px; }
+    .center { text-align: center; }
+    button, .btn {
+      font: inherit; border: 0; border-radius: 12px; padding: 12px 16px; cursor: pointer;
+      background: var(--accent-soft); color: var(--accent); font-weight: 600;
+    }
+    button.primary { background: var(--accent); color: #fff; }
+    button.danger { background: var(--bad-soft); color: var(--bad); }
+    button.small { padding: 6px 10px; font-size: 14px; border-radius: 9px; }
+    button.big { width: 100%; padding: 18px; font-size: 19px; border-radius: 14px; }
+    button.big.on { background: var(--warn); color: #fff; }
+    input, select {
+      font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px; width: 100%;
+    }
+    label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+    label input { margin-top: 4px; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; min-width: 0; }
+
+    .ring-wrap { display: flex; flex-direction: column; align-items: center; margin: 4px 0 16px; }
+    .ring { position: relative; width: 190px; height: 190px; }
+    .ring svg { transform: rotate(-90deg); }
+    .ring .label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .ring .big-num { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .status-pill { display: inline-block; margin-top: 4px; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+    .pill-on { background: var(--good-soft); color: var(--good); }
+    .pill-off { background: var(--bad-soft); color: var(--bad); }
+    .live { font-variant-numeric: tabular-nums; font-size: 15px; color: var(--muted); margin-top: 10px; text-align: center; }
+
+    .day-list { list-style: none; margin: 0; padding: 0; }
+    .day-list li { border-top: 1px solid var(--line); padding: 12px 0; }
+    .day-list li:first-child { border-top: 0; }
+    .day-head { display: flex; justify-content: space-between; align-items: baseline; cursor: pointer; gap: 8px; }
+    .day-head strong { font-variant-numeric: tabular-nums; }
+    .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .bar > span { display: block; height: 100%; border-radius: 99px; }
+    .sessions { margin-top: 8px; display: none; }
+    .sessions.open { display: block; }
+    .sess { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 14px; gap: 8px; }
+    .sess span { font-variant-numeric: tabular-nums; }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat { background: var(--bg); border-radius: 12px; padding: 12px; }
+    .stat .v { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .stat .k { font-size: 13px; color: var(--muted); }
+    .chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; border-bottom: 1px solid var(--line); position: relative; margin: 8px 0 4px; }
+    .chart .col { flex: 1; border-radius: 3px 3px 0 0; min-height: 1px; }
+    .chart .goal-line { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--muted); opacity: .6; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; }
+    td.ok { color: var(--good); font-weight: 600; }
+    td.mid { color: var(--warn); font-weight: 600; }
+    td.low { color: var(--bad); font-weight: 600; }
+
+    nav.tabs {
+      position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line);
+      display: flex; padding-bottom: env(safe-area-inset-bottom); z-index: 10;
+    }
+    nav.tabs button { flex: 1; background: none; color: var(--muted); border-radius: 0; padding: 10px 0 12px; font-size: 13px; font-weight: 600; }
+    nav.tabs button .ic { display: block; font-size: 20px; line-height: 1.2; }
+    nav.tabs button.active { color: var(--accent); }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    dialog { border: 0; border-radius: 16px; padding: 20px; background: var(--card); color: var(--text); width: min(92vw, 420px); }
+    dialog::backdrop { background: rgba(0,0,0,.45); }
+    .toast {
+      position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+      background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px;
+      opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20;
+    }
+    .toast.show { opacity: 1; }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      header, nav.tabs, .no-print, .toast { display: none !important; }
+      .view { display: none !important; }
+      #view-report { display: block !important; }
+      .card { border: 0; padding: 0; }
+      .stat { border: 1px solid #ccc; }
+      .chart .col { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🦷 교정기 착용 기록</h1>
+    <p id="todayLabel"></p>
+  </header>
+
+  <main>
+    <!-- 오늘 -->
+    <section class="view active" id="view-today">
+      <div class="card">
+        <div class="ring-wrap">
+          <div class="ring">
+            <svg width="190" height="190" viewBox="0 0 190 190">
+              <circle cx="95" cy="95" r="82" fill="none" stroke="var(--line)" stroke-width="14"/>
+              <circle id="ringFg" cx="95" cy="95" r="82" fill="none" stroke="var(--accent)" stroke-width="14"
+                      stroke-linecap="round" stroke-dasharray="515.2" stroke-dashoffset="515.2"/>
+            </svg>
+            <div class="label">
+              <div class="muted">오늘 착용</div>
+              <div class="big-num" id="todayTotal">0:00</div>
+              <div class="muted" id="todayGoal">목표 22시간</div>
+            </div>
+          </div>
+          <span class="status-pill pill-off" id="statusPill">빼고 있음</span>
+        </div>
+        <button class="big primary" id="toggleBtn">끼기 시작</button>
+        <div class="live" id="liveText"></div>
+      </div>
+
+      <div class="card">
+        <h2>최근 7일</h2>
+        <ul class="day-list" id="weekList"></ul>
+      </div>
+    </section>
+
+    <!-- 기록 -->
+    <section class="view" id="view-log">
+      <div class="card">
+        <div class="row" style="align-items:center; margin-bottom:8px">
+          <h2 style="margin:0">날짜별 기록</h2>
+          <div style="flex:0 0 auto"><button class="small primary" id="addBtn">+ 직접 입력</button></div>
+        </div>
+        <p class="muted" style="margin-top:0">날짜를 누르면 세부 시간을 보고 수정·삭제할 수 있어요.</p>
+        <ul class="day-list" id="logList"></ul>
+        <div class="center" style="margin-top:10px"><button class="small" id="moreBtn">더 보기</button></div>
+      </div>
+    </section>
+
+    <!-- 병원 보고서 -->
+    <section class="view" id="view-report">
+      <div class="card">
+        <h2>병원 제출용 착용 보고서</h2>
+        <div class="row no-print">
+          <label>시작일<input type="date" id="repFrom"></label>
+          <label>종료일<input type="date" id="repTo"></label>
+        </div>
+        <p class="muted" id="repRange"></p>
+        <div class="stats">
+          <div class="stat"><div class="v" id="sAvg">-</div><div class="k">하루 평균 착용</div></div>
+          <div class="stat"><div class="v" id="sRate">-</div><div class="k" id="kRate">목표 달성일</div></div>
+          <div class="stat"><div class="v" id="sMax">-</div><div class="k" id="kMax">가장 많이 낀 날</div></div>
+          <div class="stat"><div class="v" id="sMin">-</div><div class="k" id="kMin">가장 적게 낀 날</div></div>
+        </div>
+        <div class="chart" id="chart"></div>
+        <p class="muted" style="margin-top:0">점선 = 하루 목표 시간</p>
+        <table>
+          <thead><tr><th>날짜</th><th>착용 시간</th><th>목표 대비</th></tr></thead>
+          <tbody id="repTable"></tbody>
+        </table>
+        <div class="row no-print" style="margin-top:14px">
+          <button class="primary" id="printBtn">인쇄 / PDF 저장</button>
+          <button id="copyBtn">요약 복사</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 설정 -->
+    <section class="view" id="view-settings">
+      <div class="card">
+        <h2>설정</h2>
+        <label>하루 목표 착용 시간 (시간)
+          <input type="number" id="goalInput" min="1" max="24" step="0.5">
+        </label>
+        <label>지난 병원 방문일 (보고서 기본 시작일)
+          <input type="date" id="visitInput">
+        </label>
+        <button class="primary" id="saveSettings" style="width:100%">저장</button>
+      </div>
+      <div class="card">
+        <h2>데이터 백업</h2>
+        <p class="muted" style="margin-top:0">기록은 이 기기의 브라우저에만 저장돼요. 브라우저 데이터를 지우거나 기기를 바꾸기 전에 백업해 두세요.</p>
+        <div class="row" style="margin-bottom:10px">
+          <button id="exportBtn">백업 파일 저장</button>
+          <button id="importBtn">백업 불러오기</button>
+        </div>
+        <button id="csvBtn" style="width:100%">엑셀(CSV)로 내보내기</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="card">
+        <h2>초기화</h2>
+        <button class="danger" id="resetBtn" style="width:100%">모든 기록 삭제</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button data-view="today" class="active"><span class="ic">⏱️</span>오늘</button>
+    <button data-view="log"><span class="ic">📅</span>기록</button>
+    <button data-view="report"><span class="ic">🏥</span>보고서</button>
+    <button data-view="settings"><span class="ic">⚙️</span>설정</button>
+  </nav>
+
+  <dialog id="editDlg">
+    <form method="dialog" id="editForm">
+      <h2 style="margin-top:0" id="editTitle">착용 시간 입력</h2>
+      <label>날짜<input type="date" id="eDate" required></label>
+      <div class="row">
+        <label>낀 시각<input type="time" id="eStart" required></label>
+        <label>뺀 시각<input type="time" id="eEnd" required></label>
+      </div>
+      <p class="muted" style="margin-top:0">뺀 시각이 낀 시각보다 이르면 다음 날로 계산해요. (예: 22:00 → 07:00)</p>
+      <div class="row">
+        <button value="cancel" formnovalidate>취소</button>
+        <button value="ok" class="primary" id="eSave">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const KEY = 'bracesTracker.v1';
+  const DAY = 86400000;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- 저장소 ----------
+  function load() {
+    try {
+      const d = JSON.parse(localStorage.getItem(KEY));
+      if (d && Array.isArray(d.sessions)) return Object.assign({ goal: 22, lastVisit: '', active: null }, d);
+    } catch (e) {}
+    return { sessions: [], active: null, goal: 22, lastVisit: '' };
+  }
+  let data = load();
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(data)); }
+    catch (e) { toast('저장에 실패했어요. 저장 공간을 확인해 주세요.'); }
+  }
+
+  // ---------- 날짜 도우미 ----------
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const startOfDay = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+  const addDays = (t, n) => { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); };
+  const WD = ['일', '월', '화', '수', '목', '금', '토'];
+  const fmtDay = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} (${WD[d.getDay()]})`; };
+  const fmtDayFull = (t) => { const d = new Date(t); return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} (${WD[d.getDay()]})`; };
+  const fmtTime = (t) => { const d = new Date(t); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+  const fmtDur = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)}:${pad(m % 60)}`; };
+  const fmtDurKo = (ms) => { const m = Math.round(ms / 60000); const h = Math.floor(m / 60), mm = m % 60; return mm ? `${h}시간 ${mm}분` : `${h}시간`; };
+  const fmtClock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${pad(Math.floor(s / 60) % 60)}:${pad(s % 60)}`; };
+
+  // 모든 착용 구간 (진행 중 포함)
+  function allSessions(now = Date.now()) {
+    const list = data.sessions.slice();
+    if (data.active) list.push({ start: data.active, end: now, live: true });
+    return list;
+  }
+
+  // 하루(자정~자정) 동안 착용한 시간(ms). 자정을 넘긴 착용은 날짜별로 나눠서 계산.
+  function wornOnDay(dayStart, now = Date.now()) {
+    const dayEnd = addDays(dayStart, 1);
+    let total = 0;
+    for (const s of allSessions(now)) {
+      const a = Math.max(s.start, dayStart), b = Math.min(s.end, dayEnd);
+      if (b > a) total += b - a;
+    }
+    return Math.min(total, dayEnd - dayStart);
+  }
+  function sessionsOnDay(dayStart, now = Date.now()) {
+    const dayEnd = addDays(dayStart, 1);
+    return allSessions(now)
+      .map((s, i) => ({ ...s, idx: s.live ? -1 : i }))
+      .filter((s) => s.end > dayStart && s.start < dayEnd)
+      .sort((a, b) => a.start - b.start);
+  }
+
+  const goalMs = () => data.goal * 3600000;
+  function levelColor(ms) {
+    const r = ms / goalMs();
+    return r >= 1 ? 'var(--good)' : r >= 0.8 ? 'var(--warn)' : 'var(--bad)';
+  }
+  function levelClass(ms) {
+    const r = ms / goalMs();
+    return r >= 1 ? 'ok' : r >= 0.8 ? 'mid' : 'low';
+  }
+
+  // ---------- 오늘 화면 ----------
+  function renderToday() {
+    const now = Date.now();
+    const today = startOfDay(now);
+    $('todayLabel').textContent = fmtDayFull(now);
+    const worn = wornOnDay(today, now);
+    $('todayTotal').textContent = fmtDur(worn);
+    $('todayGoal').textContent = `목표 ${data.goal}시간`;
+    const ratio = Math.min(worn / goalMs(), 1);
+    const C = 515.2;
+    const fg = $('ringFg');
+    fg.setAttribute('stroke-dashoffset', String(C * (1 - ratio)));
+    fg.setAttribute('stroke', ratio >= 1 ? 'var(--good)' : 'var(--accent)');
+
+    const btn = $('toggleBtn'), pill = $('statusPill');
+    if (data.active) {
+      btn.textContent = '뺐어요 (착용 멈춤)';
+      btn.classList.add('on');
+      pill.textContent = '착용 중';
+      pill.className = 'status-pill pill-on';
+      $('liveText').textContent = `${fmtTime(data.active)}부터 착용 중 · ${fmtClock(now - data.active)}`;
+    } else {
+      btn.textContent = '끼기 시작';
+      btn.classList.remove('on');
+      pill.textContent = '빼고 있음';
+      pill.className = 'status-pill pill-off';
+      const last = data.sessions.reduce((m, s) => Math.max(m, s.end), 0);
+      $('liveText').textContent = last ? `${fmtTime(last)}에 뺌 · ${fmtClock(now - last)} 지남` : '교정기를 끼면 버튼을 눌러 주세요.';
+    }
+  }
+
+  function dayRow(dayStart, now, withSessions) {
+    const worn = wornOnDay(dayStart, now);
+    const pct = Math.min(100, (worn / goalMs()) * 100);
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="day-head"><span>${fmtDay(dayStart)}${dayStart === startOfDay(now) ? ' · 오늘' : ''}</span>
+        <strong style="color:${worn ? levelColor(worn) : 'var(--muted)'}">${fmtDurKo(worn)}</strong></div>
+      <div class="bar"><span style="width:${pct}%;background:${levelColor(worn)}"></span></div>`;
+    if (withSessions) {
+      const box = document.createElement('div');
+      box.className = 'sessions';
+      const ss = sessionsOnDay(dayStart, now);
+      if (!ss.length) box.innerHTML = '<div class="muted">기록 없음</div>';
+      for (const s of ss) {
+        const row = document.createElement('div');
+        row.className = 'sess';
+        const crossStart = s.start < dayStart ? '(전날) ' : '';
+        const crossEnd = s.end > addDays(dayStart, 1) ? ' (다음날)' : '';
+        row.innerHTML = `<span>${crossStart}${fmtTime(s.start)} → ${s.live ? '지금 (착용 중)' : crossEnd ? fmtTime(s.end) + crossEnd : fmtTime(s.end)}
+          · ${fmtDurKo(s.end - s.start)}</span>`;
+        if (!s.live) {
+          const actions = document.createElement('span');
+          actions.style.flex = '0 0 auto';
+          const e = document.createElement('button'); e.className = 'small'; e.textContent = '수정';
+          e.onclick = () => openEdit(s.idx);
+          const d = document.createElement('button'); d.className = 'small danger'; d.textContent = '삭제';
+          d.style.marginLeft = '6px';
+          d.onclick = () => {
+            if (confirm(`${fmtTime(s.start)} → ${fmtTime(s.end)} 기록을 삭제할까요?`)) {
+              data.sessions.splice(s.idx, 1); save(); renderAll(); toast('삭제했어요');
+            }
+          };
+          actions.append(e, d);
+          row.append(actions);
+        }
+        box.append(row);
+      }
+      li.append(box);
+      li.querySelector('.day-head').onclick = () => {
+        box.classList.toggle('open');
+        if (box.classList.contains('open')) openDays.add(dayStart); else openDays.delete(dayStart);
+      };
+      if (openDays.has(dayStart)) box.classList.add('open');
+    }
+    return li;
+  }
+
+  function renderWeek() {
+    const now = Date.now(), today = startOfDay(now);
+    const ul = $('weekList'); ul.innerHTML = '';
+    for (let i = 0; i < 7; i++) ul.append(dayRow(addDays(today, -i), now, false));
+  }
+
+  // ---------- 기록 화면 ----------
+  let logDays = 14;
+  const openDays = new Set();
+  function renderLog() {
+    const now = Date.now(), today = startOfDay(now);
+    const ul = $('logList'); ul.innerHTML = '';
+    for (let i = 0; i < logDays; i++) ul.append(dayRow(addDays(today, -i), now, true));
+  }
+  $('moreBtn').onclick = () => { logDays += 14; renderLog(); };
+
+  // 직접 입력/수정
+  let editIdx = null;
+  function openEdit(idx) {
+    editIdx = idx;
+    const dlg = $('editDlg');
+    if (idx != null) {
+      const s = data.sessions[idx];
+      $('editTitle').textContent = '착용 기록 수정';
+      $('eDate').value = ymd(new Date(s.start));
+      $('eStart').value = fmtTime(s.start);
+      $('eEnd').value = fmtTime(s.end);
+    } else {
+      $('editTitle').textContent = '착용 시간 직접 입력';
+      $('eDate').value = ymd(new Date());
+      $('eStart').value = '';
+      $('eEnd').value = '';
+    }
+    dlg.showModal();
+  }
+  $('addBtn').onclick = () => openEdit(null);
+  $('editDlg').addEventListener('close', () => {
+    if ($('editDlg').returnValue !== 'ok') return;
+    const base = parseYmd($('eDate').value).getTime();
+    const [sh, sm] = $('eStart').value.split(':').map(Number);
+    const [eh, em] = $('eEnd').value.split(':').map(Number);
+    const sd = new Date(base); sd.setHours(sh, sm, 0, 0);
+    const ed = new Date(base); ed.setHours(eh, em, 0, 0);
+    if (ed <= sd) ed.setDate(ed.getDate() + 1);
+    const s = { start: sd.getTime(), end: ed.getTime() };
+    if (s.end > Date.now() + 60000) { toast('미래 시각은 입력할 수 없어요'); return; }
+    if (overlaps(s, editIdx)) { toast('다른 기록과 시간이 겹쳐요'); return; }
+    if (editIdx != null) data.sessions[editIdx] = s; else data.sessions.push(s);
+    data.sessions.sort((a, b) => a.start - b.start);
+    save(); openDays.add(startOfDay(s.start)); renderAll();
+    toast('저장했어요');
+  });
+  function overlaps(s, skipIdx) {
+    const others = data.sessions.filter((_, i) => i !== skipIdx);
+    if (data.active) others.push({ start: data.active, end: Infinity });
+    return others.some((o) => s.start < o.end && o.start < s.end);
+  }
+
+  // ---------- 시작/정지 ----------
+  $('toggleBtn').onclick = () => {
+    const now = Date.now();
+    if (data.active) {
+      if (now - data.active >= 60000) data.sessions.push({ start: data.active, end: now });
+      data.active = null;
+      toast('착용을 멈췄어요. 다시 끼면 버튼을 눌러 주세요!');
+    } else {
+      data.active = now;
+      toast('착용 시작! 🦷');
+    }
+    save(); renderAll();
+  };
+
+  // ---------- 보고서 ----------
+  function reportRange() {
+    const today = startOfDay(Date.now());
+    let from = $('repFrom').value ? parseYmd($('repFrom').value).getTime() : null;
+    let to = $('repTo').value ? parseYmd($('repTo').value).getTime() : today;
+    if (from == null) {
+      if (data.lastVisit) from = parseYmd(data.lastVisit).getTime();
+      else {
+        const first = allSessions().reduce((m, s) => Math.min(m, s.start), Infinity);
+        from = isFinite(first) ? Math.max(startOfDay(first), addDays(today, -29)) : addDays(today, -6);
+      }
+      $('repFrom').value = ymd(new Date(from));
+    }
+    if (!$('repTo').value) $('repTo').value = ymd(new Date(to));
+    if (to < from) [from, to] = [to, from];
+    return { from, to };
+  }
+  let lastReport = null;
+  function renderReport() {
+    const now = Date.now();
+    const { from, to } = reportRange();
+    const days = [];
+    for (let t = from; t <= to; t = addDays(t, 1)) days.push({ t, ms: wornOnDay(t, now) });
+    const n = days.length;
+    const sum = days.reduce((a, d) => a + d.ms, 0);
+    const met = days.filter((d) => d.ms >= goalMs()).length;
+    const max = days.reduce((m, d) => (d.ms > m.ms ? d : m), days[0]);
+    const min = days.reduce((m, d) => (d.ms < m.ms ? d : m), days[0]);
+    const avg = n ? sum / n : 0;
+
+    $('repRange').textContent = `${fmtDayFull(from)} ~ ${fmtDayFull(to)} · ${n}일 · 목표 하루 ${data.goal}시간`;
+    $('sAvg').textContent = fmtDurKo(avg);
+    $('sRate').textContent = `${met}/${n}일`;
+    $('kRate').textContent = `목표 달성일 (${n ? Math.round((met / n) * 100) : 0}%)`;
+    $('sMax').textContent = n ? fmtDurKo(max.ms) : '-';
+    $('kMax').textContent = n ? `가장 많이 낀 날 · ${fmtDay(max.t)}` : '가장 많이 낀 날';
+    $('sMin').textContent = n ? fmtDurKo(min.ms) : '-';
+    $('kMin').textContent = n ? `가장 적게 낀 날 · ${fmtDay(min.t)}` : '가장 적게 낀 날';
+
+    const chart = $('chart'); chart.innerHTML = '';
+    const goalLine = document.createElement('div');
+    goalLine.className = 'goal-line';
+    goalLine.style.bottom = `${(data.goal / 24) * 100}%`;
+    chart.append(goalLine);
+    for (const d of days) {
+      const c = document.createElement('div');
+      c.className = 'col';
+      c.style.height = `${(d.ms / DAY) * 100}%`;
+      c.style.background = levelColor(d.ms);
+      c.title = `${fmtDay(d.t)} ${fmtDurKo(d.ms)}`;
+      chart.append(c);
+    }
+
+    const tb = $('repTable'); tb.innerHTML = '';
+    for (const d of days.slice().reverse()) {
+      const tr = document.createElement('tr');
+      const pct = Math.round((d.ms / goalMs()) * 100);
+      tr.innerHTML = `<td>${fmtDay(d.t)}</td><td class="${levelClass(d.ms)}">${fmtDurKo(d.ms)}</td><td>${pct}%</td>`;
+      tb.append(tr);
+    }
+    lastReport = { from, to, n, avg, met, days };
+  }
+  $('repFrom').onchange = renderReport;
+  $('repTo').onchange = renderReport;
+  $('printBtn').onclick = () => window.print();
+  $('copyBtn').onclick = async () => {
+    if (!lastReport) return;
+    const r = lastReport;
+    const lines = [
+      `[교정기 착용 기록] ${fmtDayFull(r.from)} ~ ${fmtDayFull(r.to)} (${r.n}일)`,
+      `하루 목표: ${data.goal}시간`,
+      `하루 평균 착용: ${fmtDurKo(r.avg)}`,
+      `목표 달성: ${r.met}/${r.n}일 (${r.n ? Math.round((r.met / r.n) * 100) : 0}%)`,
+      '',
+      ...r.days.map((d) => `${fmtDay(d.t)}  ${fmtDurKo(d.ms)}`),
+    ];
+    const text = lines.join('\n');
+    try { await navigator.clipboard.writeText(text); toast('요약을 복사했어요'); }
+    catch (e) { prompt('아래 내용을 복사하세요', text); }
+  };
+
+  // ---------- 설정 ----------
+  function renderSettings() {
+    $('goalInput').value = data.goal;
+    $('visitInput').value = data.lastVisit || '';
+  }
+  $('saveSettings').onclick = () => {
+    const g = parseFloat($('goalInput').value);
+    if (!(g > 0 && g <= 24)) { toast('목표는 1~24시간 사이로 입력해 주세요'); return; }
+    data.goal = g;
+    data.lastVisit = $('visitInput').value;
+    $('repFrom').value = ''; $('repTo').value = '';
+    save(); renderAll(); toast('설정을 저장했어요');
+  };
+
+  function download(name, text, type) {
+    const blob = new Blob([text], { type });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  $('exportBtn').onclick = () => download(`교정기기록-백업-${ymd(new Date())}.json`, JSON.stringify(data, null, 2), 'application/json');
+  $('importBtn').onclick = () => $('importFile').click();
+  $('importFile').onchange = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (!Array.isArray(d.sessions)) throw new Error();
+      if (!confirm('지금 기록을 백업 파일 내용으로 바꿀까요?')) return;
+      data = Object.assign({ goal: 22, lastVisit: '', active: null }, d);
+      save(); renderAll(); toast('백업을 불러왔어요');
+    } catch (err) { toast('올바른 백업 파일이 아니에요'); }
+    e.target.value = '';
+  };
+  $('csvBtn').onclick = () => {
+    const now = Date.now();
+    const ss = allSessions(now);
+    if (!ss.length) { toast('내보낼 기록이 없어요'); return; }
+    const first = startOfDay(Math.min(...ss.map((s) => s.start)));
+    const rows = ['날짜,착용시간(분),착용시간,목표(시간),달성'];
+    for (let t = first; t <= startOfDay(now); t = addDays(t, 1)) {
+      const ms = wornOnDay(t, now);
+      rows.push(`${ymd(new Date(t))},${Math.round(ms / 60000)},${fmtDurKo(ms)},${data.goal},${ms >= goalMs() ? 'O' : 'X'}`);
+    }
+    download(`교정기착용기록-${ymd(new Date())}.csv`, '﻿' + rows.join('\n'), 'text/csv');
+  };
+  $('resetBtn').onclick = () => {
+    if (confirm('모든 착용 기록을 삭제할까요? 되돌릴 수 없어요.') && confirm('정말 삭제할까요?')) {
+      data = { sessions: [], active: null, goal: data.goal, lastVisit: data.lastVisit };
+      save(); renderAll(); toast('모든 기록을 삭제했어요');
+    }
+  };
+
+  // ---------- 탭 / 공통 ----------
+  let current = 'today';
+  document.querySelectorAll('nav.tabs button').forEach((b) => {
+    b.onclick = () => {
+      current = b.dataset.view;
+      document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('active', x === b));
+      document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${current}`));
+      renderAll();
+      window.scrollTo(0, 0);
+    };
+  });
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function renderAll() {
+    renderToday();
+    if (current === 'today') renderWeek();
+    if (current === 'log') renderLog();
+    if (current === 'report') renderReport();
+    if (current === 'settings') renderSettings();
+  }
+
+  // 다른 탭/창에서 바뀐 내용 반영
+  window.addEventListener('storage', (e) => { if (e.key === KEY) { data = load(); renderAll(); } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { data = load(); renderAll(); } });
+
+  renderAll();
+  setInterval(() => {
+    renderToday();
+    if (current === 'today' && data.active) renderWeek();
+  }, 1000);
+})();
+</script>
+</body>
+</html>
